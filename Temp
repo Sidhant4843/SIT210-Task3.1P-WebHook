@@ -1,0 +1,78 @@
+#include <WiFiNINA.h>
+#include <ThingSpeak.h> 
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
+const int SENSOR_PIN = 4;
+#define SENSOR_TYPE DHT22
+
+char networkName[] = "bruno";
+char networkPass[] = "Apnachotabruno";
+
+unsigned long dataChannelID = 2250324;
+const char *dataApiKey = "O3ZQF323AGPCKTCD";
+
+WiFiClient wifiClient;
+DHT_Unified sensor(SENSOR_PIN, SENSOR_TYPE);
+
+void setup()
+{
+  Serial.begin(9600);
+  ConnectWiFi();
+  ThingSpeak.begin(wifiClient);
+  sensor.begin();
+}
+
+void loop()
+{
+  delay(1000);
+
+  sensors_event_t sensorEvent;
+  sensor.temperature().getEvent(&sensorEvent);
+  float temp = sensorEvent.temperature;
+  Serial.print("Temp: ");
+  Serial.print(temp);
+  Serial.println("°C");
+
+  float humidity = sensorEvent.relative_humidity;
+  Serial.print("Humidity: ");
+  Serial.print(humidity);
+  Serial.println("%");
+
+  if (!isnan(temp) && !isnan(humidity))
+  {
+    ThingSpeak_Data(temp, humidity);
+  } 
+  else 
+  {
+    Serial.println("Failed to read sensor values");
+  }
+}
+
+void ConnectWiFi() 
+{
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    Serial.print("Connecting to WiFi...");
+    WiFi.begin(networkName, networkPass);
+    delay(1000);
+  }
+  Serial.println("Connected to WiFi");
+}
+
+void ThingSpeak_Data(float temp)
+{
+  ThingSpeak.setField(1, temp);
+
+  int statusCode = ThingSpeak.writeFields(dataChannelID, dataApiKey);
+
+  if (statusCode == 200)
+  {
+    Serial.println("Data sent successfully");
+  } 
+  else
+  {
+    Serial.println("Error sending data");
+  }
+}
